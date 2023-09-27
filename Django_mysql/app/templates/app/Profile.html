@@ -1,0 +1,251 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile Page</title>
+  <!-- Add your CSS and JS files if needed -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      padding-top: 50px; /* Add some padding to the top */
+      padding-bottom: 50px; /* Add some padding to the bottom */
+      margin: 0;
+    }
+
+    .card {
+      position: fixed;
+      top: 0;
+      left: 0; /* Update the position to left */
+      width: 300px;
+      height: 100%;
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      padding-top: 80px; /* Add some top padding */
+      padding-bottom: 80px; /* Add some bottom padding */
+    }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+
+    .passport-photo {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      border-radius: 50%;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .field {
+      margin-bottom: 15px;
+    }
+
+    .field-label {
+      font-weight: bold;
+      color: #333;
+    }
+
+    .field-value {
+      display: inline-block;
+      margin-left: 10px;
+      color: #555;
+    }
+
+    .expand-button {
+      background: none;
+      border: none;
+      color: blue;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: underline;
+      transition: color 0.3s ease;
+    }
+
+      .expand-button:hover {
+        color: #000;
+      }
+
+    .hidden-info {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid lightgray;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      color: #555;
+    }
+
+    .chat-container {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: calc(100% - 360px); /* Adjust the width as needed */
+      height: 100%;
+      background-color: #f9f9f9;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      overflow-y: scroll;
+      padding-top: 80px;
+      padding-bottom: 80px;
+    }
+
+    .chat-message {
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    .user-message {
+      text-align: right;
+    }
+
+    .bot-message {
+      text-align: left;
+    }
+
+    .message-bubble {
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      margin-bottom: 10px;
+      display: inline-block;
+      max-width: 80%;
+    }
+
+    .input-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: calc(100% - 360px);
+      padding: 10px;
+      border-radius: 10px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+      .input-container input {
+        flex: 1;
+        padding: 5px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        margin-right: 10px;
+      }
+
+      .input-container button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+
+        .input-container button:hover {
+          background-color: #45a049;
+        }
+  </style>
+</head>
+<body>
+  <div class="card">
+    {% if image_exists %}
+    <img src="{% static profile_url %}" alt="Profile Photo" class="passport-photo">
+    {% else %}
+    <form action="/upload-profile-photo/" method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field">
+        <span class="field-label">Profile Photo:</span>
+        <input type="file" name="profile_photo" accept="image/*" />
+      </div>
+      <div class="field">
+        <input type="submit" value="Upload" />
+      </div>
+    </form>
+    {% endif %}
+
+    <!-- Display other profile information -->
+    {% for row in rows_values %}
+    <div class="field">
+      <span class="field-label">Username:</span>
+      <span class="field-value">{{ row.2 }}</span>
+    </div>
+    <div class="field">
+      <span class="field-label">Email ID:</span>
+      <span class="field-value">{{ row.1 }}</span>
+    </div>
+    <div class="field">
+      <span class="field-label">Mobile Number:</span>
+      <span class="field-value">{{ row.3 }}</span>
+    </div>
+    <div class="field">
+      <span class="field-label">Course:</span>
+      <span class="field-value">{{ row.4 }}</span>
+      <button class="expand-button">More</button>
+      <div class="hidden-info">
+        <!-- Additional information here -->
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="chat-container">
+    <div id="chat-box"></div>
+  </div>
+
+  <div class="input-container">
+    <input type="text" id="input-prompt" placeholder="Enter a prompt" />
+    <button id="submit-prompt" onclick="submitPrompt()">Submit</button>
+  </div>
+
+  <script>
+    function submitPrompt() {
+      var inputPrompt = document.getElementById("input-prompt").value;
+      var chatBox = document.getElementById("chat-box");
+
+      // Display user message
+      var userMessage = document.createElement("div");
+      userMessage.className = "chat-message user-message";
+      var messageBubble = document.createElement("div");
+      messageBubble.className = "message-bubble";
+      messageBubble.innerText = inputPrompt;
+      userMessage.appendChild(messageBubble);
+      chatBox.appendChild(userMessage);
+
+      // Send the input prompt to the server for processing
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '{% url 'process_prompt' %}', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          // Display bot response
+          var botMessage = document.createElement("div");
+          botMessage.className = "chat-message bot-message";
+          var botMessageBubble = document.createElement("div");
+          botMessageBubble.className = "message-bubble";
+          botMessageBubble.innerText = xhr.responseText;
+          botMessage.appendChild(botMessageBubble);
+          chatBox.appendChild(botMessage);
+        }
+      };
+      xhr.send(JSON.stringify({ prompt: inputPrompt }));
+
+      // Clear the input prompt
+      document.getElementById("input-prompt").value = "";
+    }
+  </script>
+</body>
+</html>
+{% endblock %}
